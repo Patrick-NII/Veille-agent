@@ -1,0 +1,31 @@
+settings:
+  timezone: Europe/Paris
+  max_items: 12
+
+topics:
+  ai_supply_chain:
+    title: "IA & Supply Chain"
+    days: [Mon, Wed, Fri]
+    max_items: 12
+    sources:
+      - https://www.supplychainbrain.com/rss/topic/1252-artificial-intelligence
+      - http://export.arxiv.org/rss/cs.LG
+      - http://export.arxiv.org/rss/cs.RO
+
+  logistics_last_mile:
+    title: "Logistique & Last Mile"
+    days: [Tue, Thu]
+    max_items: 10
+    sources:
+      - https://www.supplychainbrain.com/rss/topic/1135-logistics
+      - https://www.supplychainbrain.com/rss/topic/1241-last-mile-delivery
+
+  industrial_ops:
+    title: "Industrie, Assembly & Systèmes"
+    days: [Mon, Thu]
+    max_items: 10
+    sources:
+      - https://www.supplychainbrain.com/rss/topic/1191-industrial-manufacturing
+      - https://www.assemblymag.com/rss/17
+      - https://www.assemblymag.com/rss/18
+      - http://export.arxiv.org/rss/eess.SY

@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+
+logs/veille.log
+logs/cron.log
+outbox/*.html
+outbox/*.txt
+
+state.json
