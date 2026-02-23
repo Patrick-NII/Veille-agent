@@ -1,24 +1,23 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-from collections import OrderedDict
-from datetime import datetime, timezone
+from dataclasses import replace
+import json
 from pathlib import Path
 
-from src.dedupe import canonicalize_url, load_state, save_state
+from src.curate import curate_links, health_summary
+from src.dedupe import load_state, save_state
+from src.editorial import build_editorial_model, model_to_dict
 from src.emailer import parse_recipients_from_env, send_email, write_dry_run
-from src.fetch import fetch_topic_items
-from src.rank import rank_items
-from src.render import render_email_html, render_email_text
-from src.summarize import build_signal_noise_action, summarize_item
+from src.qa import enforce_quality_or_fallback
+from src.render import render_email
 from src.utils import (
     LOGO_FILE,
     OUTBOX_DIR,
+    SOCIAL_ASSETS,
+    SOURCES_FILE,
     STATE_FILE,
     TEMPLATE_FILE,
-    FeedItem,
-    TopicConfig,
-    clamp_items,
     ensure_directories,
     load_config,
     load_environment,
@@ -29,48 +28,7 @@ from src.utils import (
     setup_logger,
     slugify,
 )
-
-
-def build_placeholder(topic: TopicConfig | None, cta_url: str) -> FeedItem:
-    title = "Aucun article exploitable aujourd'hui"
-    if topic is not None:
-        title = f"{topic.name}: aucun article exploitable aujourd'hui"
-    return FeedItem(
-        title=title,
-        link=cta_url,
-        source="Veille Agent",
-        published=datetime.now(timezone.utc),
-        summary=(
-            "Les flux RSS sont momentanément indisponibles ou ne contiennent pas de nouveautés non envoyées. "
-            "Le template est maintenu pour garantir la continuité de diffusion."
-        ),
-        is_placeholder=True,
-    )
-
-
-def collect_topic_brief(topic: TopicConfig, sent_links: set[str], limit: int, cta_url: str, logger) -> list[FeedItem]:
-    fetched = fetch_topic_items(topic.name, topic.sources, logger)
-    deduped: list[FeedItem] = []
-    local_seen: set[str] = set()
-
-    for item in fetched:
-        normalized_link = canonicalize_url(item.link)
-        if not normalized_link:
-            continue
-        if normalized_link in sent_links or normalized_link in local_seen:
-            continue
-
-        local_seen.add(normalized_link)
-        item.link = normalized_link
-        item.summary = summarize_item(item)
-        deduped.append(item)
-
-    ranked = rank_items(deduped, clamp_items(limit))
-    if ranked:
-        return ranked
-
-    logger.warning("No usable items for topic '%s', injecting placeholder", topic.name)
-    return [build_placeholder(topic, cta_url)]
+from src.visuals import generate_simple_diagram, mini_diagram_text
 
 
 def run() -> int:
@@ -84,96 +42,135 @@ def run() -> int:
         run_day = parse_run_date(args.run_date, config.timezone)
         topics = select_topics(config, run_day, args.forced_topic)
     except Exception as exc:
-        logger.error("Startup failed: %s", exc)
+        logger.error("Échec du démarrage: %s", exc)
         return 1
 
-    if not topics and not args.dry_run:
-        logger.info("No topic scheduled for %s", run_day.isoformat())
+    if args.mode == "weekly" and run_day.weekday() != 4 and not args.dry_run:
+        logger.info("Mode weekly ignoré: la date %s n'est pas un vendredi", run_day.isoformat())
         return 0
 
     sent_links = load_state(STATE_FILE)
     if not STATE_FILE.exists():
         save_state(STATE_FILE, sent_links)
-    items_by_topic: OrderedDict[str, list[FeedItem]] = OrderedDict()
 
-    selected_topics = topics
-    if not selected_topics and args.dry_run:
-        selected_topics = [
-            TopicConfig(
-                key="preview",
-                name="Preview Newsletter",
-                days=set(),
-                sources=["https://example.com/rss"],
-                max_items=5,
-                enabled=True,
-            )
-        ]
-
-    for topic in selected_topics:
-        topic_limit = args.limit if args.limit else topic.max_items
-        items_by_topic[topic.name] = collect_topic_brief(
-            topic=topic,
-            sent_links=sent_links,
-            limit=topic_limit,
-            cta_url=config.cta_url,
-            logger=logger,
-        )
-
-    if not items_by_topic:
-        logger.warning("No content generated")
+    if topics:
+        topic = topics[0]
+    elif config.topics:
+        topic = config.topics[0]
+    else:
+        logger.error("Aucun topic disponible dans la configuration.")
         return 1
 
-    signal, noise, action = build_signal_noise_action(items_by_topic)
+    target_links = 4 if args.mode == "daily" else 5
+    curated_links, health = curate_links(
+        sources_path=SOURCES_FILE,
+        mode=args.mode,
+        run_day=run_day,
+        sent_links=sent_links,
+        logger=logger,
+        target_count=target_links,
+        fallback_url=config.cta_url,
+    )
+    logger.info("Sources health | %s", health_summary(health))
 
-    topic_names = list(items_by_topic.keys())
-    subject_topic = topic_names[0] if len(topic_names) == 1 else "Brief quotidien"
-    subject = f"[Veille] {subject_topic} - {run_day.isoformat()}"
+    editorial_model = build_editorial_model(
+        mode=args.mode,
+        run_day=run_day,
+        topic_focus=topic.name,
+        curated_links=curated_links,
+        author_name=config.author_name,
+        tagline=config.tagline,
+        force_archetype=args.force_archetype,
+        topic_hooks=topic.hooks,
+    )
 
-    logo_src = "cid:logo_head"
-    if args.dry_run:
-        logo_src = LOGO_FILE.as_posix() if LOGO_FILE.exists() else "https://via.placeholder.com/600x200?text=Logo"
+    editorial_model, qa_issues = enforce_quality_or_fallback(editorial_model, run_day)
+    if qa_issues:
+        logger.warning("QA a déclenché le fallback narratif: %s", " | ".join(qa_issues))
 
-    html_content = render_email_html(
+    visual_data = {"out_dir": OUTBOX_DIR, "preferred_type": editorial_model.visual_type}
+    visual_path = generate_simple_diagram(args.mode, visual_data)
+    visual_src = "cid:visual_1" if visual_path is not None else None
+    if visual_path is None:
+        logger.warning("Génération visuelle indisponible: fallback mini-diagramme texte.")
+        editorial_model = replace(
+            editorial_model,
+            visual_text_fallback=mini_diagram_text(
+                editorial_model.visual_type, editorial_model.company, editorial_model.decision_type
+            ),
+        )
+
+    social_urls = {
+        "linkedin": config.linkedin_url,
+        "twitter": config.twitter_url,
+        "medium": config.medium_url,
+        "github": config.github_url,
+    }
+    social_icon_sources = {
+        "linkedin": "cid:social_linkedin",
+        "twitter": "cid:social_twitter",
+        "medium": "cid:social_medium",
+        "github": "cid:social_github",
+    }
+
+    html_content, text_content = render_email(
+        type="daily_use_case" if args.mode == "daily" else "weekly_deep_dive",
         template_path=TEMPLATE_FILE,
-        items_by_topic=items_by_topic,
-        signal=signal,
-        noise=noise,
-        action=action,
+        model=editorial_model,
         cta_url=config.cta_url,
+        cta_label=config.cta_label,
         unsubscribe_url=config.unsubscribe_url,
         privacy_url=config.privacy_url,
         contact_url=config.contact_url,
-        logo_src=logo_src,
+        footer_address=config.footer_address,
+        social_urls=social_urls,
+        social_icon_sources=social_icon_sources,
+        visual_src=visual_src,
+        logo_src="cid:logo_head",
     )
-    text_content = render_email_text(items_by_topic, signal, noise, action)
 
-    slug_base = slugify(subject_topic if len(topic_names) == 1 else "newsletter")
+    subject = f"[Veille] {editorial_model.title} - {run_day.isoformat()}"
+    slug = slugify(f"{args.mode}-{topic.name}")
 
     if args.dry_run:
-        html_path, text_path = write_dry_run(OUTBOX_DIR, run_day, slug_base, html_content, text_content)
-        logger.info("Dry-run file generated: %s", html_path)
-        logger.info("Dry-run text generated: %s", text_path)
+        html_path, text_path = write_dry_run(OUTBOX_DIR, run_day, slug, html_content, text_content)
+        logger.info("Dry-run HTML généré: %s", html_path)
+        logger.info("Dry-run TXT généré: %s", text_path)
+
+        if args.golden and args.mode == "daily":
+            golden_html = OUTBOX_DIR / "GOLDEN_daily.html"
+            golden_json = OUTBOX_DIR / "GOLDEN_daily.json"
+            golden_html.write_text(html_content, encoding="utf-8")
+            golden_json.write_text(
+                json.dumps(model_to_dict(editorial_model), ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+            logger.info("Golden sample généré: %s et %s", golden_html, golden_json)
         return 0
 
+    inline_assets = {"logo_head": LOGO_FILE}
+    inline_assets.update(SOCIAL_ASSETS)
+    if visual_path is not None:
+        inline_assets["visual_1"] = visual_path
+
     try:
-        send_email(subject, html_content, text_content, LOGO_FILE)
+        send_email(subject, html_content, text_content, inline_assets)
         recipients = parse_recipients_from_env()
-        logger.info("Newsletter sent to %s recipient(s): %s", len(recipients), ", ".join(recipients))
+        logger.info("Newsletter envoyée à %s destinataire(s): %s", len(recipients), ", ".join(recipients))
     except Exception as exc:
-        logger.error("SMTP send failed: %s", exc)
+        logger.error("Échec SMTP: %s", exc)
         return 1
 
-    for topic_items in items_by_topic.values():
-        for item in topic_items:
-            if not item.is_placeholder:
-                sent_links.add(item.link)
+    for link in curated_links:
+        if not link.is_placeholder:
+            sent_links.add(link.url)
     save_state(STATE_FILE, sent_links)
 
     logger.info(
-        "Run complete for %s at %s (%s topics)",
+        "Exécution terminée pour %s à %s (mode=%s)",
         run_day.isoformat(),
         now_in_tz(config.timezone).isoformat(timespec="seconds"),
-        len(topic_names),
+        args.mode,
     )
     return 0
 

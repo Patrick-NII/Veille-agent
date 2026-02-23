@@ -14,6 +14,9 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 DEFAULT_TIMEZONE = "Europe/Paris"
 DEFAULT_MAX_ITEMS = 8
+DEFAULT_MODE = "daily"
+SUPPORTED_MODES = {"daily", "weekly", "autopsy"}
+
 ENV_FILES = [Path(".env"), Path("secrets/smtp.env"), Path("secrets/openai.env")]
 LOG_FILE = Path("logs/veille-agent.log")
 STATE_FILE = Path("state.json")
@@ -21,6 +24,15 @@ OUTBOX_DIR = Path("outbox")
 LOGS_DIR = Path("logs")
 TEMPLATE_FILE = Path("templates/email.html")
 LOGO_FILE = Path("logo/Logo-Head.png")
+SOURCES_FILE = Path("config/sources.yaml")
+
+ASSET_DIR = Path("assets")
+SOCIAL_ASSETS: dict[str, Path] = {
+    "social_linkedin": ASSET_DIR / "social/linkedin.svg",
+    "social_twitter": ASSET_DIR / "social/x.svg",
+    "social_medium": ASSET_DIR / "social/medium.svg",
+    "social_github": ASSET_DIR / "social/github.svg",
+}
 
 DAY_ALIASES = {
     "MON": "Mon",
@@ -61,6 +73,7 @@ class TopicConfig:
     days: set[str]
     sources: list[str]
     max_items: int
+    hooks: list[str]
     enabled: bool = True
 
 
@@ -68,10 +81,18 @@ class TopicConfig:
 class AppConfig:
     timezone: str
     max_items: int
+    tagline: str
+    cta_label: str
     cta_url: str
     unsubscribe_url: str
     privacy_url: str
     contact_url: str
+    footer_address: str
+    linkedin_url: str
+    twitter_url: str
+    medium_url: str
+    github_url: str
+    author_name: str
     topics: list[TopicConfig]
 
 
@@ -86,11 +107,14 @@ class FeedItem:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Veille Agent MVP")
+    parser = argparse.ArgumentParser(description="pAIpers editorial engine")
     parser.add_argument("--dry-run", action="store_true", help="Write HTML/TXT in outbox without sending")
     parser.add_argument("--date", dest="run_date", help="Simulate execution date YYYY-MM-DD")
     parser.add_argument("--topic", dest="forced_topic", help="Force one topic by key or name")
     parser.add_argument("--limit", dest="limit", type=int, help="Override max items per topic")
+    parser.add_argument("--mode", dest="mode", default=DEFAULT_MODE, choices=sorted(SUPPORTED_MODES), help="Editorial mode: daily|weekly|autopsy")
+    parser.add_argument("--force-archetype", dest="force_archetype", help="Force storytelling archetype")
+    parser.add_argument("--golden", action="store_true", help="Generate GOLDEN_daily.* regression files in outbox")
     parser.add_argument("--config", default="config.yaml", help="Path to config YAML")
     return parser.parse_args()
 
@@ -156,25 +180,33 @@ def load_config(path: Path) -> AppConfig:
         normalized: list[dict[str, Any]] = []
         for key, value in topics_raw.items():
             if isinstance(value, dict):
-                copy = dict(value)
-                copy.setdefault("key", str(key))
-                copy.setdefault("name", str(key))
-                normalized.append(copy)
+                item = dict(value)
+                item.setdefault("key", str(key))
+                item.setdefault("name", str(key))
+                normalized.append(item)
         topics_raw = normalized
 
     if not isinstance(topics_raw, list):
         raise ValueError("Invalid config: topics must be a list")
 
-    topics = [parse_topic(topic) for topic in topics_raw]
+    topics = [parse_topic(topic) for topic in topics_raw] if topics_raw else []
 
     max_items = clamp_items(int(settings.get("max_items", DEFAULT_MAX_ITEMS)))
     return AppConfig(
         timezone=str(settings.get("timezone", DEFAULT_TIMEZONE)),
         max_items=max_items,
-        cta_url=str(settings.get("cta_url", "https://example.com")),
+        tagline=str(settings.get("tagline", "Signaux pour décideurs IA")),
+        cta_label=str(settings.get("cta_label", "OUVRIR LE DOSSIER STRATÉGIQUE")),
+        cta_url=str(settings.get("cta_url", "https://example.com/brief")),
         unsubscribe_url=str(settings.get("unsubscribe_url", "https://example.com/unsubscribe")),
         privacy_url=str(settings.get("privacy_url", "https://example.com/privacy")),
         contact_url=str(settings.get("contact_url", "https://example.com/contact")),
+        footer_address=str(settings.get("footer_address", "4019 Waterview Lane, Santa Fe, NM 87500")),
+        linkedin_url=str(settings.get("linkedin_url", "https://www.linkedin.com/company/paipers")),
+        twitter_url=str(settings.get("twitter_url", "https://x.com/paipers")),
+        medium_url=str(settings.get("medium_url", "https://medium.com/@paipers")),
+        github_url=str(settings.get("github_url", "https://github.com/Patrick-NII/Veille-agent")),
+        author_name=str(settings.get("author_name", "Patrick.nii")),
         topics=topics,
     )
 
@@ -187,11 +219,16 @@ def parse_topic(raw: Any) -> TopicConfig:
     name = str(raw.get("name") or key).strip()
     days_raw = raw.get("days", [])
     sources_raw = raw.get("sources", [])
+    hooks_raw = raw.get("hooks", [])
 
     if not isinstance(days_raw, list) or not days_raw:
         raise ValueError(f"Invalid topic '{name}': days must be a non-empty list")
     if not isinstance(sources_raw, list) or not sources_raw:
         raise ValueError(f"Invalid topic '{name}': sources must be a non-empty list")
+    if hooks_raw is None:
+        hooks_raw = []
+    if not isinstance(hooks_raw, list):
+        raise ValueError(f"Invalid topic '{name}': hooks must be a list")
 
     days = {normalize_day(day) for day in days_raw}
     sources = [str(source).strip() for source in sources_raw if str(source).strip()]
@@ -200,7 +237,8 @@ def parse_topic(raw: Any) -> TopicConfig:
 
     max_items = clamp_items(int(raw.get("max_items", DEFAULT_MAX_ITEMS)))
     enabled = bool(raw.get("enabled", True))
-    return TopicConfig(key=slugify(key), name=name, days=days, sources=sources, max_items=max_items, enabled=enabled)
+    hooks = [str(item).strip() for item in hooks_raw if str(item).strip()]
+    return TopicConfig(key=slugify(key), name=name, days=days, sources=sources, max_items=max_items, hooks=hooks, enabled=enabled)
 
 
 def normalize_day(value: Any) -> str:

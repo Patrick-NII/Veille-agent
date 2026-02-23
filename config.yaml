@@ -1,10 +1,20 @@
 settings:
   timezone: Europe/Paris
   max_items: 8
-  cta_url: https://www.paipers.tech/
+  tagline: Signaux pour décideurs IA
+  cta_label: OUVRIR LE DOSSIER STRATÉGIQUE
+  cta_url: https://www.paipers.tech/briefs
   unsubscribe_url: https://www.paipers.tech/unsubscribe
   privacy_url: https://www.paipers.tech/privacy-policy
   contact_url: https://www.paipers.tech/contact
+  footer_address: 4019 Waterview Lane, Santa Fe, NM 87500
+  author_name: Patrick.nii
+
+  # Social links (footer)
+  linkedin_url: https://www.linkedin.com/company/paipers
+  twitter_url: https://x.com/paipers
+  medium_url: https://medium.com/@paipers
+  github_url: https://github.com/Patrick-NII/Veille-agent
 
 topics:
   - key: ia-industrielle-logistique
@@ -12,6 +22,8 @@ topics:
     days: [Mon, Wed, Fri]
     max_items: 10
     enabled: true
+    hooks:
+      - Le dossier d'aujourd'hui illustre comment une décision locale peut reconfigurer toute la chaîne opérationnelle.
     sources:
       - https://www.supplychainbrain.com/rss/topic/1252-artificial-intelligence
       - https://www.supplychainbrain.com/rss/topic/1135-logistics
@@ -25,12 +37,14 @@ topics:
     days: [Tue, Thu]
     max_items: 8
     enabled: true
+    hooks:
+      - Le signal clé porte sur la qualité de décision, pas uniquement sur la performance modèle.
     sources:
       - https://www.assemblymag.com/rss/17
       - https://www.assemblymag.com/rss/18
       - http://export.arxiv.org/rss/eess.SY
 
-  # Optional example bricks (disabled by default)
+  # Optional bricks (examples)
   - key: strategy
     name: Strategy
     days: [Mon]
