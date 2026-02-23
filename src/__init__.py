@@ -1,0 +1,1 @@
+"""Veille agent MVP package."""

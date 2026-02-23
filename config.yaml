@@ -1,31 +1,72 @@
 settings:
   timezone: Europe/Paris
-  max_items: 12
+  max_items: 8
+  cta_url: https://www.paipers.tech/
+  unsubscribe_url: https://www.paipers.tech/unsubscribe
+  privacy_url: https://www.paipers.tech/privacy-policy
+  contact_url: https://www.paipers.tech/contact
 
 topics:
-  ai_supply_chain:
-    title: "IA & Supply Chain"
+  - key: ia-industrielle-logistique
+    name: IA industrielle & logistique
     days: [Mon, Wed, Fri]
-    max_items: 12
+    max_items: 10
+    enabled: true
     sources:
       - https://www.supplychainbrain.com/rss/topic/1252-artificial-intelligence
+      - https://www.supplychainbrain.com/rss/topic/1135-logistics
+      - https://www.supplychainbrain.com/rss/topic/1241-last-mile-delivery
+      - https://www.supplychainbrain.com/rss/topic/1191-industrial-manufacturing
       - http://export.arxiv.org/rss/cs.LG
       - http://export.arxiv.org/rss/cs.RO
 
-  logistics_last_mile:
-    title: "Logistique & Last Mile"
+  - key: data-industrielle
+    name: Data industrielle
     days: [Tue, Thu]
-    max_items: 10
+    max_items: 8
+    enabled: true
     sources:
-      - https://www.supplychainbrain.com/rss/topic/1135-logistics
-      - https://www.supplychainbrain.com/rss/topic/1241-last-mile-delivery
-
-  industrial_ops:
-    title: "Industrie, Assembly & Systèmes"
-    days: [Mon, Thu]
-    max_items: 10
-    sources:
-      - https://www.supplychainbrain.com/rss/topic/1191-industrial-manufacturing
       - https://www.assemblymag.com/rss/17
       - https://www.assemblymag.com/rss/18
       - http://export.arxiv.org/rss/eess.SY
+
+  # Optional example bricks (disabled by default)
+  - key: strategy
+    name: Strategy
+    days: [Mon]
+    max_items: 6
+    enabled: false
+    sources:
+      - https://hbr.org/topic/strategy/rss
+
+  - key: mlops
+    name: MLOps
+    days: [Tue]
+    max_items: 6
+    enabled: false
+    sources:
+      - https://ml-ops.org/feed/
+
+  - key: architecture
+    name: Architecture
+    days: [Wed]
+    max_items: 6
+    enabled: false
+    sources:
+      - https://martinfowler.com/feed.atom
+
+  - key: governance
+    name: Governance
+    days: [Thu]
+    max_items: 6
+    enabled: false
+    sources:
+      - https://oecd.ai/en/rss
+
+  - key: systemic-decision
+    name: Systemic Decision
+    days: [Fri]
+    max_items: 6
+    enabled: false
+    sources:
+      - https://mitsloan.mit.edu/feed

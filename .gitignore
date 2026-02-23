@@ -3,9 +3,17 @@ __pycache__/
 *.pyc
 .DS_Store
 
-logs/veille.log
-logs/cron.log
-outbox/*.html
-outbox/*.txt
+# Secrets
+.env
+.env.local
+.env.*.local
+secrets/*.env
 
+# Runtime state
 state.json
+logs/*
+outbox/*
+
+# Keep folders
+!logs/.gitkeep
+!outbox/.gitkeep

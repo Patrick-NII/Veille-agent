@@ -1,32 +1,38 @@
-# Veille RSS quotidienne (email)
+# veille-agent (MVP)
 
-Projet Python prêt à exécuter pour envoyer chaque jour ouvré une veille thématique par email (ou en `dry-run` HTML).
+MVP newsletter engine that builds a daily email brief from RSS sources and sends it via SMTP using a fixed, email-safe HTML template.
 
-## Fonctionnalités
+## Features
 
-- Exécution prévue pour cron (lun-ven).
-- Topics configurables dans `config.yaml` avec jours assignés (`Mon`..`Fri`) et sources RSS.
-- Déduplication stricte des liens déjà envoyés via `state.json`.
-- Sélection de 5 à 15 items max (triés par date décroissante).
-- Résumé local heuristique (RSS description + fallback premières phrases de l'article).
-- Optionnel: amélioration des résumés via OpenAI si `OPENAI_API_KEY` est défini.
-- Double rendu email: HTML moderne responsive + version texte.
-- Deux modes de sortie:
-  - SMTP (Gmail ou autre serveur SMTP).
-  - `--dry-run` vers `outbox/<date>_<topic>.html`.
-- Logs structurés JSON dans `logs/veille.log`.
+- Fixed template in `/Users/nii/Documents/Veille-agent/templates/email.html` (table-based, Outlook-friendly)
+- Dynamic content injected at `{{DYNAMIC_BLOCK}}`
+- Inline logo via CID (`logo_head`) in send mode
+- Dry-run fallback logo path for HTML preview
+- RSS ingest + retries + timeouts
+- Deduplication with `/Users/nii/Documents/Veille-agent/state.json`
+- Per-topic brief (5-10 items), sorted newest first
+- Signal / Noise / Action section
+- CLI options: `--dry-run`, `--date`, `--topic`, `--limit`
+- Logs in stdout + `/Users/nii/Documents/Veille-agent/logs/veille-agent.log`
 
-## Arborescence
+## Project structure
 
-- `main.py`
-- `config.yaml`
-- `requirements.txt`
-- `README.md`
-- `outbox/`
-- `logs/`
-- `state.json` (créé automatiquement au premier run)
+- `/Users/nii/Documents/Veille-agent/main.py`
+- `/Users/nii/Documents/Veille-agent/config.yaml`
+- `/Users/nii/Documents/Veille-agent/templates/email.html`
+- `/Users/nii/Documents/Veille-agent/logo/Logo-Head.png`
+- `/Users/nii/Documents/Veille-agent/src/fetch.py`
+- `/Users/nii/Documents/Veille-agent/src/dedupe.py`
+- `/Users/nii/Documents/Veille-agent/src/rank.py`
+- `/Users/nii/Documents/Veille-agent/src/summarize.py`
+- `/Users/nii/Documents/Veille-agent/src/render.py`
+- `/Users/nii/Documents/Veille-agent/src/emailer.py`
+- `/Users/nii/Documents/Veille-agent/src/utils.py`
+- `/Users/nii/Documents/Veille-agent/scripts/test_smtp.py`
+- `/Users/nii/Documents/Veille-agent/outbox/`
+- `/Users/nii/Documents/Veille-agent/logs/`
 
-## Setup rapide
+## Install
 
 ```bash
 python3 -m venv .venv
@@ -34,74 +40,67 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## Exemple de `config.yaml`
+## Configure `.env`
 
-Le fichier fourni inclut déjà les sources demandées:
+Use `/Users/nii/Documents/Veille-agent/.env` and `/Users/nii/Documents/Veille-agent/secrets/smtp.env`.
 
-- SupplyChainBrain (AI, logistics, last-mile, industrial manufacturing)
-- ASSEMBLY (2 flux)
-- arXiv (`cs.LG`, `cs.RO`, `eess.SY`)
-
-Vous pouvez ajuster:
-
-- `settings.timezone` (ex: `Europe/Paris`)
-- `settings.max_items` (borné automatiquement entre 5 et 15)
-- `topics.<topic>.days`
-- `topics.<topic>.sources`
-
-## Exemple de `.env`
+Required SMTP variables:
 
 ```dotenv
-# SMTP mode
-SMTP_HOST=smtp.gmail.com
+SMTP_HOST=smtp.example.com
 SMTP_PORT=587
-SMTP_USER=votre_adresse@gmail.com
-SMTP_PASS=votre_mot_de_passe_app
-EMAIL_FROM=votre_adresse@gmail.com
-EMAIL_TO=dest1@entreprise.com,dest2@entreprise.com
+SMTP_USER=user@example.com
+SMTP_PASS=app-password
+EMAIL_FROM=News Bot <user@example.com>
+EMAIL_TO=alice@example.com,bob@example.com
+```
 
-# Optionnel
+Optional transport flags:
+
+```dotenv
 SMTP_STARTTLS=true
 SMTP_SSL=false
-
-# Optionnel: amélioration des résumés
-OPENAI_API_KEY=
-OPENAI_MODEL=gpt-4o-mini
-OPENAI_TIMEOUT=20
 ```
 
-## Commandes
+- Recommended for port `587`: `SMTP_STARTTLS=true`, `SMTP_SSL=false`
+- Recommended for port `465`: `SMTP_STARTTLS=false`, `SMTP_SSL=true`
 
-### Test local en dry-run
+## Test SMTP only
 
 ```bash
+python scripts/test_smtp.py
+python scripts/test_smtp.py --send-test
+```
+
+## Run newsletter (dry-run)
+
+```bash
+python main.py --dry-run
 python main.py --dry-run --date 2026-02-23
+python main.py --dry-run --topic "IA industrielle & logistique"
+python main.py --dry-run --limit 6
 ```
 
-### Forcer un topic
+Dry-run writes files in `/Users/nii/Documents/Veille-agent/outbox/`.
+
+## Run newsletter (send)
 
 ```bash
-python main.py --dry-run --date 2026-02-23 --topic ai_supply_chain
-```
-
-### Envoi SMTP (sans `--dry-run`)
-
-```bash
+python main.py
 python main.py --date 2026-02-23
 ```
 
-## Cron (Europe/Paris)
-
-Exemple (lun-ven à 08:15):
+## Cron example (Mon-Fri 07:15 Europe/Paris)
 
 ```cron
 CRON_TZ=Europe/Paris
-15 8 * * 1-5 /Users/nii/Documents/Veille-agent/.venv/bin/python /Users/nii/Documents/Veille-agent/main.py >> /Users/nii/Documents/Veille-agent/logs/cron.log 2>&1
+15 7 * * 1-5 /Users/nii/Documents/Veille-agent/.venv/bin/python /Users/nii/Documents/Veille-agent/main.py >> /Users/nii/Documents/Veille-agent/logs/cron.log 2>&1
 ```
 
-## Notes de robustesse
+## Deliverability note (DKIM/SPF)
 
-- Timeouts réseau et retries simples sur le fetch RSS.
-- Gestion d'erreurs par topic: un flux en erreur n'arrête pas tout le run.
-- Déduplication par URL canonique (suppression des paramètres de tracking `utm_*`, etc.).
-- `state.json` est mis à jour atomiquement (`.tmp` puis replace).
+For reliable inbox placement, configure SPF and DKIM for your sender domain and align `EMAIL_FROM` with that authenticated domain.
+
+## Behavior when feeds fail
+
+If RSS sources are unavailable, the agent injects placeholder content so `--dry-run` still produces at least one HTML preview file.
