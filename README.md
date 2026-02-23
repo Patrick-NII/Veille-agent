@@ -1,106 +1,197 @@
-# veille-agent (MVP)
+# pAIpers (veille-agent)
 
-MVP newsletter engine that builds a daily email brief from RSS sources and sends it via SMTP using a fixed, email-safe HTML template.
+MVP éditorial pour décideurs IA/Data.
 
-## Features
+Positionnement: **Enterprise AI Orchestration**
+(stratégie -> gouvernance -> architecture -> économie -> risque).
 
-- Fixed template in `/Users/nii/Documents/Veille-agent/templates/email.html` (table-based, Outlook-friendly)
-- Dynamic content injected at `{{DYNAMIC_BLOCK}}`
-- Inline logo via CID (`logo_head`) in send mode
-- Dry-run fallback logo path for HTML preview
-- RSS ingest + retries + timeouts
-- Deduplication with `/Users/nii/Documents/Veille-agent/state.json`
-- Per-topic brief (5-10 items), sorted newest first
-- Signal / Noise / Action section
-- CLI options: `--dry-run`, `--date`, `--topic`, `--limit`
-- Logs in stdout + `/Users/nii/Documents/Veille-agent/logs/veille-agent.log`
+Le moteur produit un email HTML **email-client-safe** (tables + styles inline), avec envoi SMTP et mode dry-run.
 
-## Project structure
+## Narrative-first
 
-- `/Users/nii/Documents/Veille-agent/main.py`
-- `/Users/nii/Documents/Veille-agent/config.yaml`
-- `/Users/nii/Documents/Veille-agent/templates/email.html`
-- `/Users/nii/Documents/Veille-agent/logo/Logo-Head.png`
-- `/Users/nii/Documents/Veille-agent/src/fetch.py`
-- `/Users/nii/Documents/Veille-agent/src/dedupe.py`
-- `/Users/nii/Documents/Veille-agent/src/rank.py`
-- `/Users/nii/Documents/Veille-agent/src/summarize.py`
-- `/Users/nii/Documents/Veille-agent/src/render.py`
-- `/Users/nii/Documents/Veille-agent/src/emailer.py`
-- `/Users/nii/Documents/Veille-agent/src/utils.py`
-- `/Users/nii/Documents/Veille-agent/scripts/test_smtp.py`
-- `/Users/nii/Documents/Veille-agent/outbox/`
-- `/Users/nii/Documents/Veille-agent/logs/`
+Chaque email applique une règle non négociable: **Arc Narratif**.
 
-## Install
+Blocs obligatoires:
+1. Accroche
+2. Situation initiale
+3. Décision prise
+4. Résultat observable
+5. Fissure / Risque émergent + Question stratégique
+
+Si un bloc est vide ou trop générique, la QA déclenche un **fallback narratif cohérent** en français.
+
+## Structure Daily Brief
+
+Le `daily` rend:
+1. Accroche
+2. Le cas
+2.1 Situation initiale
+2.2 Décision prise
+2.3 Workflow avant -> après
+2.4 Résultat observable
+2.5 Où ça a fissuré
+2.6 Question stratégique
+3. pAIpers Decision Grid™
+4. Liens sélectionnés (3 à 5)
+5. Décryptage exécutif
+6. Bloc visuel (CID `visual_1`) ou mini-diagramme texte
+
+Tout le contenu éditorial est en français.
+
+## Weekly / Autopsy
+
+- `weekly`: même pipeline, angle plus approfondi (placeholder MVP).
+- `autopsy`: mode autopsie mensuelle (placeholder MVP).
+
+## Architecture
+
+```text
+veille-agent/
+  main.py
+  config.yaml
+  config/
+    sources.yaml
+  templates/
+    email.html
+  assets/
+    social/
+  src/
+    curate.py
+    story_templates.py
+    story_builder.py
+    clean.py
+    qa.py
+    editorial.py
+    render.py
+    visuals.py
+    emailer.py
+    dedupe.py
+    fetch.py
+    summarize.py
+    utils.py
+  scripts/
+    test_smtp.py
+  outbox/
+  logs/
+  state.json (auto-créé)
+```
+
+## Installation
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+.venv/bin/python -m pip install -r requirements.txt
 ```
 
-## Configure `.env`
+## Configuration
 
-Use `/Users/nii/Documents/Veille-agent/.env` and `/Users/nii/Documents/Veille-agent/secrets/smtp.env`.
-
-Required SMTP variables:
+### SMTP (`.env` ou `secrets/smtp.env`)
 
 ```dotenv
 SMTP_HOST=smtp.example.com
 SMTP_PORT=587
 SMTP_USER=user@example.com
 SMTP_PASS=app-password
-EMAIL_FROM=News Bot <user@example.com>
+EMAIL_FROM=pAIpers <user@example.com>
 EMAIL_TO=alice@example.com,bob@example.com
-```
 
-Optional transport flags:
-
-```dotenv
 SMTP_STARTTLS=true
 SMTP_SSL=false
 ```
 
-- Recommended for port `587`: `SMTP_STARTTLS=true`, `SMTP_SSL=false`
-- Recommended for port `465`: `SMTP_STARTTLS=false`, `SMTP_SSL=true`
+### `config.yaml`
 
-## Test SMTP only
+Contient:
+- `author_name`
+- `tagline`
+- `cta_label`
+- liens sociaux
+- topics (jours, sources, hooks narratifs optionnels)
 
-```bash
-python scripts/test_smtp.py
-python scripts/test_smtp.py --send-test
-```
+### `config/sources.yaml`
 
-## Run newsletter (dry-run)
+Sources de curation par catégories (RSS + placeholders).
 
-```bash
-python main.py --dry-run
-python main.py --dry-run --date 2026-02-23
-python main.py --dry-run --topic "IA industrielle & logistique"
-python main.py --dry-run --limit 6
-```
+## Commandes
 
-Dry-run writes files in `/Users/nii/Documents/Veille-agent/outbox/`.
-
-## Run newsletter (send)
+### Dry-run
 
 ```bash
-python main.py
-python main.py --date 2026-02-23
+.venv/bin/python main.py --dry-run --mode daily
+.venv/bin/python main.py --dry-run --mode weekly
+.venv/bin/python main.py --dry-run --mode autopsy
 ```
 
-## Cron example (Mon-Fri 07:15 Europe/Paris)
+### Archetype forcé
+
+```bash
+.venv/bin/python main.py --dry-run --mode daily --force-archetype deploiement_copilot
+```
+
+### Golden sample (régression)
+
+```bash
+.venv/bin/python main.py --dry-run --mode daily --force-archetype deploiement_copilot --golden
+```
+
+Génère:
+- `outbox/GOLDEN_daily.html`
+- `outbox/GOLDEN_daily.json`
+
+### Envoi SMTP
+
+```bash
+.venv/bin/python main.py --mode daily
+.venv/bin/python main.py --mode weekly
+```
+
+## Template email
+
+Le layout externe reste:
+- fond sombre `#232323`
+- carte blanche centrée `600px`
+- logo en CID `logo_head`
+- footer social cliquable (LinkedIn, X, Medium, GitHub)
+
+## Visuals
+
+`src/visuals.py` gère les types:
+- `workflow_avant_apres`
+- `boucle_feedback`
+- `roi_simple`
+- `goulot_contrainte`
+
+Si la génération échoue, un mini-diagramme texte est injecté.
+
+## QA / garde-fous
+
+`src/qa.py` et `src/clean.py` appliquent:
+- validation stricte de l'Arc Narratif
+- nettoyage bruit RSS
+- suppression doublons de labels
+- contrôle paragraphes longs
+- fallback histoire placeholder si nécessaire
+
+## Test SMTP
+
+```bash
+.venv/bin/python scripts/test_smtp.py
+.venv/bin/python scripts/test_smtp.py --send-test
+```
+
+## Cron (Europe/Paris)
+
+Daily (lun-jeu 07:15):
 
 ```cron
 CRON_TZ=Europe/Paris
-15 7 * * 1-5 /Users/nii/Documents/Veille-agent/.venv/bin/python /Users/nii/Documents/Veille-agent/main.py >> /Users/nii/Documents/Veille-agent/logs/cron.log 2>&1
+15 7 * * 1-4 /Users/nii/Documents/Veille-agent/.venv/bin/python /Users/nii/Documents/Veille-agent/main.py --mode daily >> /Users/nii/Documents/Veille-agent/logs/cron.log 2>&1
 ```
 
-## Deliverability note (DKIM/SPF)
+Weekly (ven 07:15):
 
-For reliable inbox placement, configure SPF and DKIM for your sender domain and align `EMAIL_FROM` with that authenticated domain.
-
-## Behavior when feeds fail
-
-If RSS sources are unavailable, the agent injects placeholder content so `--dry-run` still produces at least one HTML preview file.
+```cron
+CRON_TZ=Europe/Paris
+15 7 * * 5 /Users/nii/Documents/Veille-agent/.venv/bin/python /Users/nii/Documents/Veille-agent/main.py --mode weekly >> /Users/nii/Documents/Veille-agent/logs/cron.log 2>&1
+```
