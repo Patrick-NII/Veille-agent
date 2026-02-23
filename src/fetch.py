@@ -2,18 +2,21 @@ from __future__ import annotations
 
 import calendar
 import logging
-import time
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from html import unescape
 import re
 
-import feedparser
 import requests
 
 from src.utils import FeedItem
 
-REQUEST_TIMEOUT = (4, 12)
+try:
+    import feedparser
+except ImportError:  # pragma: no cover
+    feedparser = None
+
+REQUEST_TIMEOUT = (3, 8)
 MAX_RETRIES = 2
 USER_AGENT = "veille-agent-mvp/1.0"
 TAG_RE = re.compile(r"<[^>]+>")
@@ -36,7 +39,11 @@ def fetch_topic_items(topic_name: str, sources: list[str], logger: logging.Logge
     return items
 
 
-def _fetch_feed(url: str, logger: logging.Logger) -> feedparser.FeedParserDict | None:
+def _fetch_feed(url: str, logger: logging.Logger):
+    if feedparser is None:
+        logger.error("feedparser missing: run `.venv/bin/python -m pip install -r requirements.txt`")
+        return None
+
     headers = {
         "User-Agent": USER_AGENT,
         "Accept": "application/rss+xml, application/xml;q=0.9, */*;q=0.8",
@@ -55,14 +62,11 @@ def _fetch_feed(url: str, logger: logging.Logger) -> feedparser.FeedParserDict |
         except Exception as exc:  # pragma: no cover
             logger.warning("Unexpected feed parse error [%s] attempt %s/%s: %s", url, attempt + 1, MAX_RETRIES + 1, exc)
 
-        if attempt < MAX_RETRIES:
-            time.sleep(attempt + 1)
-
     logger.error("Feed failed after retries: %s", url)
     return None
 
 
-def _entry_to_item(entry: feedparser.FeedParserDict, fallback_source: str) -> FeedItem | None:
+def _entry_to_item(entry, fallback_source: str) -> FeedItem | None:
     title = str(entry.get("title", "")).strip()
     link = str(entry.get("link", "")).strip()
     if not title or not link:

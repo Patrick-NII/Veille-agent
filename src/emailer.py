@@ -6,14 +6,14 @@ import smtplib
 from datetime import date
 from email.message import EmailMessage
 from pathlib import Path
-from typing import Sequence
+from typing import Mapping, Sequence
 
 
 def send_email(
     subject: str,
     html_content: str,
     text_content: str,
-    logo_path: Path,
+    inline_assets: Mapping[str, Path],
 ) -> None:
     host = _required_env("SMTP_HOST")
     port = int(_required_env("SMTP_PORT"))
@@ -30,12 +30,12 @@ def send_email(
     message.add_alternative(html_content, subtype="html")
 
     html_part = message.get_body(preferencelist=("html",))
-    if html_part is not None and logo_path.exists():
-        mime_type, _ = mimetypes.guess_type(str(logo_path))
-        maintype, subtype = ("image", "png")
-        if mime_type and "/" in mime_type:
-            maintype, subtype = mime_type.split("/", maxsplit=1)
-        html_part.add_related(logo_path.read_bytes(), maintype=maintype, subtype=subtype, cid="<logo_head>")
+    if html_part is not None:
+        for cid, file_path in inline_assets.items():
+            if not file_path.exists():
+                continue
+            maintype, subtype = _mime_type(file_path)
+            html_part.add_related(file_path.read_bytes(), maintype=maintype, subtype=subtype, cid=f"<{cid}>")
 
     use_ssl = _bool_env("SMTP_SSL", default=(port == 465))
     use_starttls = _bool_env("SMTP_STARTTLS", default=(port == 587 and not use_ssl))
@@ -90,6 +90,14 @@ def _bool_env(name: str, default: bool) -> bool:
     if not value:
         return default
     return value in {"1", "true", "yes", "on"}
+
+
+def _mime_type(path: Path) -> tuple[str, str]:
+    mime_type, _ = mimetypes.guess_type(str(path))
+    if mime_type and "/" in mime_type:
+        maintype, subtype = mime_type.split("/", maxsplit=1)
+        return maintype, subtype
+    return "application", "octet-stream"
 
 
 def parse_recipients_from_env() -> Sequence[str]:
