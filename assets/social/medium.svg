@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22" role="img" aria-label="Medium icon">
+  <rect width="22" height="22" rx="11" fill="#12100E" />
+  <circle cx="8" cy="11" r="3.2" fill="#FFFFFF" />
+  <ellipse cx="13.6" cy="11" rx="2.3" ry="3.2" fill="#FFFFFF" opacity="0.85" />
+  <ellipse cx="17.5" cy="11" rx="1.2" ry="3" fill="#FFFFFF" opacity="0.55" />
+</svg>

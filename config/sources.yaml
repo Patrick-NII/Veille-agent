@@ -1,0 +1,59 @@
+Strategy:
+  - name: McKinsey AI reports
+    url: https://www.mckinsey.com/capabilities/quantumblack/our-insights
+    placeholder: true
+  - name: BCG Gamma
+    url: https://www.bcg.com/capabilities/artificial-intelligence
+    placeholder: true
+  - name: MIT Sloan Management Review
+    url: https://sloanreview.mit.edu/tag/artificial-intelligence/feed/
+  - name: Harvard Business Review
+    url: https://hbr.org/topic/artificial-intelligence/rss
+  - name: Stanford AI Index
+    url: https://aiindex.stanford.edu/report/
+    placeholder: true
+
+Enterprise Tech:
+  - name: CIO.com
+    url: https://www.cio.com/feed/
+  - name: InfoQ AI
+    url: https://www.infoq.com/ai-ml-data-eng/feed/
+  - name: Thoughtworks radar (placeholder)
+    url: https://www.thoughtworks.com/radar
+    placeholder: true
+
+MLOps/Architecture:
+  - name: AWS Machine Learning Blog
+    url: https://aws.amazon.com/blogs/machine-learning/feed/
+  - name: Google Cloud AI blog
+    url: https://cloud.google.com/blog/products/ai-machine-learning/rss/
+  - name: Azure AI blog
+    url: https://azure.microsoft.com/en-us/blog/topics/ai-machine-learning/feed/
+  - name: Nvidia blog
+    url: https://blogs.nvidia.com/feed/
+  - name: HuggingFace blog
+    url: https://huggingface.co/blog/feed.xml
+
+Research:
+  - name: arXiv cs.LG
+    url: http://export.arxiv.org/rss/cs.LG
+  - name: arXiv cs.RO
+    url: http://export.arxiv.org/rss/cs.RO
+  - name: arXiv eess.SY
+    url: http://export.arxiv.org/rss/eess.SY
+  - name: Papers with Code
+    url: https://paperswithcode.com/rss
+
+Industrial/Logistics:
+  - name: SupplyChainBrain AI
+    url: https://www.supplychainbrain.com/rss/topic/1252-artificial-intelligence
+  - name: SupplyChainBrain Logistics
+    url: https://www.supplychainbrain.com/rss/topic/1135-logistics
+  - name: SupplyChainBrain Last Mile
+    url: https://www.supplychainbrain.com/rss/topic/1241-last-mile-delivery
+  - name: SupplyChainBrain Industrial Manufacturing
+    url: https://www.supplychainbrain.com/rss/topic/1191-industrial-manufacturing
+  - name: AssemblyMag 17
+    url: https://www.assemblymag.com/rss/17
+  - name: AssemblyMag 18
+    url: https://www.assemblymag.com/rss/18

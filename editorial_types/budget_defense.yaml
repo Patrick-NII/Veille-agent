@@ -1,0 +1,23 @@
+objective: "Equip decision-makers to defend AI budget with measurable economics."
+audience_level: "AI Program Manager, Finance partner"
+tone: "Financially grounded"
+framework_constraints:
+  model: "pAIpers Orchestration Framework"
+  pillars:
+    - Economics
+    - Strategy
+    - Risk
+  format: "budget-oriented view"
+required_sections:
+  - Header
+  - Context
+  - Value and cost drivers
+  - Budget implication
+  - Executive Decrypt
+output_constraints:
+  title_max_chars: 80
+  context_max_words: 60
+signal_noise_action_format:
+  signal: "2 bullets"
+  noise: "1 bullet"
+  action: "2 bullets"

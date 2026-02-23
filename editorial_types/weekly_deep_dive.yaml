@@ -1,0 +1,32 @@
+objective: "Deliver a premium weekly analysis for enterprise AI orchestration leaders."
+audience_level: "Head of Data, Deputy CDO, Group AI Lead"
+tone: "Strategic, rigorous, concise"
+framework_constraints:
+  model: "pAIpers Orchestration Framework"
+  pillars:
+    - Strategy
+    - Architecture
+    - Governance
+    - Economics
+    - Risk
+  format: "full form with extensions"
+required_sections:
+  - Header
+  - Context
+  - Case Snapshot
+  - pAIpers Framework
+  - Curated Links
+  - Executive Decrypt
+  - Build vs Buy
+  - If I were the CDO
+  - Second-order effects
+  - Checklist
+  - Visual Block
+output_constraints:
+  links_count_min: 4
+  links_count_max: 5
+  context_max_words: 70
+signal_noise_action_format:
+  signal: "2 bullets"
+  noise: "1 bullet"
+  action: "2 bullets"

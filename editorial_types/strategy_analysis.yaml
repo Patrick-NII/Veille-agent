@@ -1,0 +1,26 @@
+objective: "Support strategic AI portfolio prioritization and governance trade-offs."
+audience_level: "Director of Data Transformation, Group AI Lead"
+tone: "Board-ready, concise, evidence-based"
+framework_constraints:
+  model: "pAIpers Orchestration Framework"
+  pillars:
+    - Strategy
+    - Architecture
+    - Governance
+    - Economics
+    - Risk
+  format: "expanded form with explicit build-vs-buy note"
+required_sections:
+  - Header
+  - Context
+  - Strategic Positioning
+  - pAIpers Framework
+  - Executive Decrypt
+output_constraints:
+  title_max_chars: 80
+  context_max_words: 70
+  strategic_positioning_max_words: 150
+signal_noise_action_format:
+  signal: "2 bullets"
+  noise: "1 bullet"
+  action: "2 bullets"
